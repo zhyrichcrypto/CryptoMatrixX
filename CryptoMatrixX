@@ -1,0 +1,90 @@
+import requests
+import pandas as pd
+import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
+
+class CryptoMatrixX:
+    def __init__(self):
+        self.api_url = 'https://api.coingecko.com/api/v3'
+
+    def get_all_cryptocurrencies(self) -> pd.DataFrame:
+        """Fetches a list of all cryptocurrencies."""
+        url = f"{self.api_url}/coins/markets"
+        params = {
+            'vs_currency': 'usd',
+            'order': 'market_cap_desc',
+            'per_page': 100,
+            'page': 1
+        }
+        response = requests.get(url, params=params)
+        data = response.json()
+        return pd.DataFrame(data)
+
+    def get_crypto_data(self, crypto_id: str) -> dict:
+        """Fetches data for a specific cryptocurrency."""
+        url = f"{self.api_url}/coins/{crypto_id}"
+        response = requests.get(url)
+        return response.json()
+
+    def get_price_history(self, crypto_id: str, days: int = 30) -> pd.DataFrame:
+        """Fetches historical price data for a specific cryptocurrency."""
+        url = f"{self.api_url}/coins/{crypto_id}/market_chart"
+        params = {
+            'vs_currency': 'usd',
+            'days': str(days)
+        }
+        response = requests.get(url, params=params)
+        data = response.json()
+        prices = data.get('prices', [])
+        df = pd.DataFrame(prices, columns=['timestamp', 'price'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        df.set_index('timestamp', inplace=True)
+        return df
+
+    def plot_price_trends(self, crypto_id: str, days: int = 30):
+        """Plots historical price trends for a specific cryptocurrency."""
+        df = self.get_price_history(crypto_id, days)
+        if df.empty:
+            print("No price data found.")
+            return
+
+        plt.figure(figsize=(12, 6))
+        df['price'].plot()
+        plt.title(f'{crypto_id.capitalize()} Price Trend')
+        plt.xlabel('Date')
+        plt.ylabel('Price (USD)')
+        plt.grid(True)
+        plt.show()
+
+    def get_market_data(self, crypto_id: str) -> dict:
+        """Fetches market data for a specific cryptocurrency."""
+        url = f"{self.api_url}/coins/{crypto_id}/market_chart"
+        params = {
+            'vs_currency': 'usd',
+            'days': '1'
+        }
+        response = requests.get(url, params=params)
+        return response.json()
+
+# Example Usage
+if __name__ == "__main__":
+    crypto_matrix_x = CryptoMatrixX()
+
+    # Fetch and Display All Cryptocurrencies
+    all_cryptos = crypto_matrix_x.get_all_cryptocurrencies()
+    print("Available Cryptocurrencies:")
+    print(all_cryptos[['id', 'symbol', 'name', 'current_price', 'market_cap', 'total_volume']].head())
+
+    # Fetch and Display Data for a Specific Cryptocurrency
+    crypto_id = 'bitcoin'  # Replace with the cryptocurrency ID of interest
+    crypto_data = crypto_matrix_x.get_crypto_data(crypto_id)
+    print(f"Data for cryptocurrency {crypto_id.capitalize()}:")
+    print(crypto_data)
+
+    # Plot Historical Price Trends
+    crypto_matrix_x.plot_price_trends(crypto_id=crypto_id, days=30)  # Example: Bitcoin price trends
+
+    # Fetch and Display Market Data
+    market_data = crypto_matrix_x.get_market_data(crypto_id)
+    print("Market Data:")
+    print(market_data)
